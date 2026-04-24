@@ -116,6 +116,10 @@ export default function Nadya() {
   const [liveTrx, setLiveTrx] = useState([]);
   const [liveAlerts, setLiveAlerts] = useState([]);
   
+  const [apiLatency, setApiLatency] = useState(45);
+  // STATE BARU: System Uptime
+  const [systemUptime, setSystemUptime] = useState(99.99);
+  
   const [sortMethod, setSortMethod] = useState('terbanyak');
   
   const totalTransaksi = pieData.reduce((acc, curr) => acc + curr.value, 0);
@@ -136,6 +140,28 @@ export default function Nadya() {
       { type: 'danger', title: 'CCTV Offline', desc: 'Koneksi ke CAM-06 terputus', time: getCurrentTime() },
       { type: 'warning', title: 'Payment Gateway', desc: 'Latensi Bank BRI > 500ms', time: getCurrentTime() }
     ]);
+
+    const latencyInterval = setInterval(() => {
+      const isSpike = Math.random() > 0.9;
+      const newLatency = isSpike 
+        ? Math.floor(Math.random() * 250) + 150 
+        : Math.floor(Math.random() * 60) + 30;
+      
+      setApiLatency(newLatency);
+
+      // Logika dinamis Uptime: Turun pelan jika latency buruk, naik pelan jika normal
+      setSystemUptime(prev => {
+        let current = parseFloat(prev);
+        if (newLatency > 200) {
+          // Sistem "terganggu", uptime turun tipis
+          return Math.max(98.50, current - 0.02).toFixed(2);
+        } else if (current < 99.99) {
+          // Sistem pulih, uptime naik perlahan ke nilai maksimal
+          return Math.min(99.99, current + 0.01).toFixed(2);
+        }
+        return current.toFixed(2);
+      });
+    }, 3000);
 
     const userInterval = setInterval(() => {
       setActiveUsers(prev => Math.max(1, prev + (Math.floor(Math.random() * 21) - 10)));
@@ -208,6 +234,7 @@ export default function Nadya() {
       clearInterval(userInterval);
       clearInterval(trxInterval);
       clearInterval(alertInterval);
+      clearInterval(latencyInterval);
     };
   }, []);
 
@@ -224,25 +251,75 @@ export default function Nadya() {
 
   const displayedTickets = getDisplayedTickets();
 
+  let latencyColor = '#22c55e';
+  let latencyBg = 'rgba(34,197,94,.12)';
+  let latencyStatus = 'Koneksi Stabil';
+  
+  if (apiLatency > 200) {
+    latencyColor = '#ef4444';
+    latencyBg = 'rgba(239,68,68,.12)';
+    latencyStatus = 'Koneksi Lambat';
+  } else if (apiLatency > 100) {
+    latencyColor = '#f59e0b';
+    latencyBg = 'rgba(245,158,11,.12)';
+    latencyStatus = 'Koneksi Menurun';
+  }
+
+  // Menentukan warna untuk kartu Uptime
+  const uptimeNum = parseFloat(systemUptime);
+  let uptimeColor = '#10b981'; // Hijau
+  let uptimeBg = 'rgba(16,185,129,.12)';
+  if (uptimeNum < 99.50) {
+    uptimeColor = '#f59e0b'; // Kuning
+    uptimeBg = 'rgba(245,158,11,.12)';
+  }
+
   return (
     <>
       <Topbar title="SmartCity Monitoring Center" subtitle="Monitoring user, transaksi, trending, dan CCTV real-time" />
       <div className="page-content section-gap">
 
-        {/* ── 1. Top Stats Cards ────────────────────────────────── */}
-        <div className="grid-4" style={{ marginBottom: 20 }}>
+        {/* ── 1. Top Stats Cards (Sekarang 6 Kartu) ─────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(200px, 1fr))', gap: 20, marginBottom: 20 }}>
+          
+          <StatCard 
+            label="System Uptime" 
+            value={<span style={{ fontFamily: 'JetBrains Mono, monospace' }}>{systemUptime}%</span>} 
+            changeText="Target SLA: 99.9%" 
+            changeType={uptimeNum >= 99.90 ? 'up' : 'down'} 
+            color={uptimeColor} 
+            bg={uptimeBg} 
+            delay="0s" 
+          >
+             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={uptimeColor} strokeWidth="2" style={{ opacity: 0.8 }}>
+               <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+             </svg>
+          </StatCard>
+
+          <StatCard 
+            label="API Latency" 
+            value={<span style={{ fontFamily: 'JetBrains Mono, monospace' }}>{apiLatency} ms</span>} 
+            changeText={latencyStatus} 
+            changeType={apiLatency > 150 ? 'down' : 'up'} 
+            color={latencyColor} 
+            bg={latencyBg} 
+            delay="0.05s" 
+          >
+             <span style={{ width: 8, height: 8, borderRadius: '50%', background: latencyColor, display: 'inline-block', animation: apiLatency > 200 ? 'blink 1s infinite' : 'pulse-ring 2s infinite' }} />
+          </StatCard>
+
           <StatCard 
             label="Register Hari Ini" 
             value={totalRegisterToday} 
             changeText="+4% dari kemarin" changeType="up" 
-            color="#f59e0b" bg="rgba(245,158,11,.12)" delay="0s" 
+            color="#3b82f6" bg="rgba(59,130,246,.12)" delay="0.10s" 
           />
           
           <StatCard 
             label="User Aktif Real-time" 
             value={activeUsers} 
             changeText="Fluktuasi per menit" 
-            color="#22c55e" bg="rgba(34,197,94,.12)" delay="0.08s"
+            color="#22c55e" bg="rgba(34,197,94,.12)" delay="0.15s"
           >
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulse-ring 2s infinite' }} />
           </StatCard>
@@ -252,16 +329,16 @@ export default function Nadya() {
             value={`${cctvAktif} / ${CCTV_LIST.length}`} 
             changeText={`${CCTV_LIST.length - cctvAktif} kamera offline`} 
             changeType={cctvAktif < CCTV_LIST.length ? 'down' : 'up'} 
-            color={cctvAktif < CCTV_LIST.length ? '#ef4444' : '#3b82f6'} 
-            bg={cctvAktif < CCTV_LIST.length ? 'rgba(239,68,68,.12)' : 'rgba(59,130,246,.12)'} 
-            delay="0.16s" 
+            color={cctvAktif < CCTV_LIST.length ? '#ef4444' : '#8b5cf6'} 
+            bg={cctvAktif < CCTV_LIST.length ? 'rgba(239,68,68,.12)' : 'rgba(139,92,246,.12)'} 
+            delay="0.20s" 
           />
 
           <StatCard 
             label="Total Transaksi" 
             value={<span style={{ fontFamily: 'JetBrains Mono, monospace' }}>{totalTransaksi.toLocaleString()}</span>} 
             changeText="Update per menit" changeType="up" 
-            color="#4072af" bg="#dae2ef" delay="0.24s" 
+            color="#4072af" bg="#dae2ef" delay="0.25s" 
           />
         </div>
 
