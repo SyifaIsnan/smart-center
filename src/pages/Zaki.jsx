@@ -132,7 +132,7 @@ export default function Zaki() {
   if (isLoading && !sysData) {
     return (
       <>
-        <Topbar title="Zaki — Server Monitoring" subtitle="Menghubungkan ke Server 41.216.191.42..." />
+        <Topbar title="SmartDeploy Monitoring Center" subtitle="Menghubungkan ke Server 41.216.191.42..." />
         <div className="page-content section-gap" style={{ maxWidth: '100%', textAlign: 'center', marginTop: 50 }}>
            <div style={{ display: 'inline-block', padding: '20px 40px', background: 'var(--card-bg)', borderRadius: 12, border: '1px solid var(--card-border)' }}>
               <div style={{ width: 40, height: 40, border: '3px solid #f1f5f9', borderTop: '3px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 15px' }} />
@@ -159,7 +159,7 @@ export default function Zaki() {
 
   return (
     <>
-      <Topbar title="Zaki — Server Monitoring" subtitle="Pantau kondisi CPU, RAM, Network, dan Container secara real-time" />
+      <Topbar title="SmartDeploy Monitoring Center" subtitle="Pantau kondisi CPU, RAM, Network, dan Container secara real-time" />
       <div className="page-content section-gap" style={{ maxWidth: '100%' }}>
 
         {apiError && (

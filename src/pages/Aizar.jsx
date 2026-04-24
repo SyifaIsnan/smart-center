@@ -231,7 +231,7 @@ export default function Aizar() {
 
   return (
     <>
-      <Topbar title="SmartPay Command Center" subtitle="Enterprise Wallet Operations: Bisnis, Infrastruktur, & Keamanan" />
+      <Topbar title="SmartPay Monitoring Center" subtitle="Enterprise Wallet Operations: Bisnis, Infrastruktur, & Keamanan" />
       <div className="page-content section-gap" style={{ padding: '0 24px 40px' }}>
 
         {/* ── ROW 1: TOP BIZ STATS ── */}
