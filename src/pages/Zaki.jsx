@@ -107,21 +107,26 @@ export default function Zaki() {
   useEffect(() => {
     const fetchAllData = async () => {
       try {
+        // Cukup panggil 5 endpoint yang benar-benar berbeda
         const [
-          dataDashboard, dataHealth, dataNetwork, dataProcesses,
-          dataCpu, dataMem, dataDisk, dataDocker, dataHistory
+          dataDashboard, dataHealth, dataNetwork, dataProcesses, dataHistory
         ] = await Promise.all([
-          getZakiDashboardData(), getZakiHealth(), getZakiNetwork(), getZakiProcesses(),
-          getZakiCpu(), getZakiMemory(), getZakiDisk(), getZakiDocker(), getZakiHistory()
+          getZakiDashboardData(), 
+          getZakiHealth(), 
+          getZakiNetwork(), 
+          getZakiProcesses(),
+          getZakiHistory()
         ]);
 
         setSysData(dataDashboard);
         setHealth(dataHealth);
         setProcesses(dataProcesses);
-        setCpuData(dataCpu);
-        setMemData(dataMem);
-        setDiskData(dataDisk);
-        setDockerData(dataDocker);
+        
+        // MENGAMBIL DATA DARI DASHBOARD (Sapu Jagat), BUKAN DARI API TERPISAH
+        setCpuData(dataDashboard.cpu);
+        setMemData(dataDashboard.memory);
+        setDiskData(dataDashboard.disk);
+        setDockerData(dataDashboard.docker);
         
         if (dataNetwork) {
           const flatNetwork = Object.entries(dataNetwork).flatMap(([iface, arr]) => 
@@ -138,9 +143,9 @@ export default function Zaki() {
            setRamHist(historyMap);
         }
 
-        const curCpu = parseFloat(dataCpu.usage.percentUsed || 0);
-        const curRam = parseFloat(dataMem.percentUsed || 0);
-        const curDisk = parseFloat(dataDisk.percentUsed || 0);
+        const curCpu = parseFloat(dataDashboard.cpu.usage.percentUsed || 0);
+        const curRam = parseFloat(dataDashboard.memory.percentUsed || 0);
+        const curDisk = parseFloat(dataDashboard.disk.percentUsed || 0);
         const curNodeMem = dataDashboard.nodejs ? parseFloat((dataDashboard.nodejs.memoryUsage.heapUsed / (1024 * 1024)).toFixed(2)) : 0;
         
         setCpuHist(prev => {
@@ -162,10 +167,9 @@ export default function Zaki() {
         setLastFetch(new Date().toLocaleTimeString('id-ID'));
 
         // --- LOGIKA ALERTING ---
-        // Jika CPU atau RAM > 85%, dan sudah lewat 60 detik dari alert terakhir, munculkan notif
         if ((curCpu > 85 || curRam > 85) && "Notification" in window && Notification.permission === "granted") {
             const now = Date.now();
-            if (now - lastAlertTime.current > 60000) { // Cooldown 1 menit
+            if (now - lastAlertTime.current > 60000) { 
                 new Notification("⚠ Peringatan Kritis SmartDeploy", {
                     body: `Kondisi Server: CPU ${curCpu.toFixed(1)}% | RAM ${curRam.toFixed(1)}%. Segera periksa dashboard!`,
                     icon: "/favicon.ico" 

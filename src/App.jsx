@@ -28,7 +28,6 @@ export default function App() {
             <Route path="/" element={<Aizar />} />
             <Route path="/smartcity" element={<Nadya />} />
             <Route path="/smartdeploy" element={<Zaki />} />
-            <Route path="/server" element={<Server />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
