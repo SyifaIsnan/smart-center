@@ -267,28 +267,50 @@ export default function Aizar() {
           />
         </div>
 
-        {/* ── ROW 2: SYSTEM HEALTH & PENDING ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 20 }}>
+        {/* ── ROW 2: SYSTEM HEALTH & PENDING (Diubah jadi 4 Grid) ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 20 }}>
+          
           <StatCard 
-            label="API Latency & Uptime" 
+            label="API Latency" 
             value={`${apiLatency} ms`} 
-            changeText={`Up: ${formatUptime(uptimeSeconds)}`} changeType="up" 
-            color={apiLatency > 100 ? '#f59e0b' : '#3b82f6'} bg={apiLatency > 100 ? 'rgba(245,158,11,.12)' : 'rgba(59,130,246,.12)'} delay="0.4s" 
+            changeText={apiLatency > 100 ? "Koneksi Lambat" : "Koneksi Stabil"} 
+            changeType={apiLatency > 100 ? "down" : "up"} 
+            color={apiLatency > 100 ? '#f59e0b' : '#3b82f6'} 
+            bg={apiLatency > 100 ? 'rgba(245,158,11,.12)' : 'rgba(59,130,246,.12)'} 
+            delay="0.4s" 
+          >
+             <span style={{ width: 8, height: 8, borderRadius: '50%', background: apiLatency > 100 ? '#f59e0b' : '#3b82f6', display: 'inline-block', animation: 'pulse-ring 2s infinite' }} />
+          </StatCard>
+
+          <StatCard 
+            label="System Uptime" 
+            value={formatUptime(uptimeSeconds)} 
+            changeText="Target SLA: 99.99%" 
+            changeType="up" 
+            color="#10b981" 
+            bg="rgba(16,185,129,.12)" 
+            delay="0.5s" 
           />
 
           <StatCard 
             label="Total Transaksi Hari Ini" 
             value={totalTrxToday.toLocaleString()} 
-            changeText={`Avg ${avgTrxPerUser}x / user`} changeType="up" 
-            color="#6366f1" bg="rgba(99,102,241,.12)" delay="0.6s" 
+            changeText={`Avg ${avgTrxPerUser}x / user`} 
+            changeType="up" 
+            color="#6366f1" 
+            bg="rgba(99,102,241,.12)" 
+            delay="0.6s" 
           />
 
           <StatCard 
             label="Total Pending Volume" 
             value={`Rp ${(pendingVolume / 1000000).toFixed(1)}M`} 
             changeText={`${pendingQueue.length} Transaksi tertahan`} 
-            color="#f59e0b" bg="rgba(245,158,11,.12)" delay="0.7s" 
+            color="#ef4444" 
+            bg="rgba(239,68,68,.12)" 
+            delay="0.7s" 
           />
+
         </div>
 
         {/* ── ROW 3: CHARTS ── */}
