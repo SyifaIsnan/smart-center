@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import Aizar from './pages/Aizar';
 import Nadya from './pages/Nadya';
 import Zaki from './pages/Zaki';
+import Server from './pages/Server';
 import './index.css';
 
 function NotFound() {
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/" element={<Aizar />} />
             <Route path="/smartcity" element={<Nadya />} />
             <Route path="/smartdeploy" element={<Zaki />} />
+            <Route path="/server" element={<Server />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
