@@ -25,8 +25,8 @@ export default function App() {
         <div className="main-content">
           <Routes>
             {/* <Route path="/" element={<Dashboard />} /> */}
-            <Route path="/" element={<Aizar />} />
-            <Route path="/smartcity" element={<Nadya />} />
+            <Route path="/" element={<NotFound />} />
+            <Route path="/smartcity" element={<NotFound />} />
             <Route path="/smartdeploy" element={<Zaki />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
