@@ -2,9 +2,11 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Aizar from './pages/Aizar';
-import Nadya from './pages/Nadya';
+import Nadya from './pages/MainServer';
+import MainServer from './pages/MainServer';
 import Zaki from './pages/Zaki';
 import Server from './pages/Server';
+import ContainerDocker from './pages/ContainerDocker';
 import './index.css';
 
 function NotFound() {
@@ -24,10 +26,10 @@ export default function App() {
         <Sidebar />
         <div className="main-content">
           <Routes>
-            {/* <Route path="/" element={<Dashboard />} /> */}
-            <Route path="/" element={<NotFound />} />
-            <Route path="/smartcity" element={<NotFound />} />
-            <Route path="/smartdeploy" element={<Zaki />} />
+            <Route path="/" element={<Aizar />} />
+            <Route path="/serverdocker" element={<Zaki />} />
+            <Route path="/server" element={<MainServer />} />
+            <Route path="/docker" element={<ContainerDocker />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
