@@ -15,6 +15,22 @@ const formatBytes = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+// Khusus untuk tampilan angka besar di atas grafik (cuma ambil angkanya)
+const formatNumberOnly = (bytes) => {
+  if (!bytes || bytes === 0) return '0';
+  const k = 1024;
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1));
+};
+
+const formatUnitOnly = (bytes) => {
+  if (!bytes || bytes === 0) return 'B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return sizes[i];
+};
+
 const truncate = (str, n) => (str && str.length > n ? str.substr(0, n - 1) + '...' : str);
 
 /* ════════════════════════════════════════════════════════════
@@ -24,14 +40,24 @@ export default function ContainerDocker() {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // State untuk menyimpan riwayat Heap Memory (maksimal 30 titik)
+  const [heapTrend, setHeapTrend] = useState([]);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Fetch dari endpoint utama yang punya nodejs, docker, dan system
         const apiData = await getZakiDashboardData();
         setData(apiData);
         setError(null);
+
+        // Rekam data heapUsage
+        if (apiData?.nodejs?.memoryUsage?.heapUsed) {
+          setHeapTrend(prev => {
+            const newTrend = [...prev, apiData.nodejs.memoryUsage.heapUsed];
+            return newTrend.slice(-30);
+          });
+        }
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
         setError("Gagal memuat data dari server");
@@ -48,7 +74,7 @@ export default function ContainerDocker() {
   if (isLoading && !data) {
     return (
       <div style={{ padding: 60, textAlign: 'center' }}>
-         <div style={{ width: 40, height: 40, border: '3px solid #f1f5f9', borderTop: '3px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 15px' }} />
+         <div style={{ width: 40, height: 40, border: '3px solid #f1f5f9', borderTop: '3px solid #8b5cf6', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 15px' }} />
          <div style={{ color: '#64748b' }}>Memuat Konfigurasi Infrastruktur...</div>
       </div>
     );
@@ -63,13 +89,29 @@ export default function ContainerDocker() {
     );
   }
 
-  // Fallback pengaman agar tidak crash jika API tidak mereturn object
   const system = data?.system || {};
   const docker = data?.docker || { running: 0, total: 0, containers: [] };
   const nodejs = data?.nodejs || {};
   const containers = docker.containers || [];
-
   const stoppedContainers = docker.total - docker.running;
+
+  // --- LOGIKA SVG GENERATOR UNTUK GRAFIK MELENGKUNG ---
+  // Tentukan batas atas dan bawah agar grafik dinamis tapi tidak menyentuh atap/dasar persis
+  const maxVal = Math.max(...heapTrend, 1) * 1.05; 
+  const minVal = Math.min(...heapTrend, maxVal) * 0.95; 
+  const range = maxVal - minVal || 1;
+
+  // Buat titik koordinat untuk garis (Line Path)
+  const pathData = heapTrend.map((val, i) => {
+    const x = (i / Math.max(heapTrend.length - 1, 1)) * 100;
+    const y = 50 - ((val - minVal) / range) * 50; // 50 adalah tinggi viewBox SVG
+    // Jika data pertama gunakan 'M' (Move to), selebihnya gunakan 'L' (Line to)
+    // Bisa diganti 'S' untuk melengkung kalau datanya sedikit, tapi untuk 30 data, 'L' sudah terlihat mulus.
+    return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+  }).join(' ');
+
+  // Area Path (Sama dengan garis, tapi ditutup ke sudut bawah agar bisa di-fill warna)
+  const areaData = pathData ? `${pathData} L 100 50 L 0 50 Z` : '';
 
   return (
     <>
@@ -95,13 +137,13 @@ export default function ContainerDocker() {
           />
           <StatCard 
             label="Docker Images" 
-            value="-" /* API belum mengirimkan total images */
+            value="-" 
             changeText="Data not provided by API" 
             color="#8b5cf6" bg="rgba(139,92,246,.12)" delay="0.2s" 
           />
           <StatCard 
             label="Volumes & Networks" 
-            value="-" /* API belum mengirimkan total volume */
+            value="-" 
             changeText="Data not provided by API" 
             color="#f59e0b" bg="rgba(245,158,11,.12)" delay="0.3s" 
           />
@@ -129,17 +171,12 @@ export default function ContainerDocker() {
               </thead>
               <tbody>
                 {containers.length > 0 ? containers.map((c, i) => {
-                  // Cek status "Up" dari text, misal "Up 53 minutes"
                   const isRunning = c.status && c.status.toLowerCase().startsWith('up');
-                  
-                  // Parsing memPercent agar bisa jadi lebar bar CSS ("0.93%" jadi angka 0.93)
                   const memPctRaw = c.stats?.memPercent || '0%';
                   const memPct = parseFloat(memPctRaw.replace('%', '')) || 0;
                   
                   return (
                     <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      
-                      {/* Name & Image */}
                       <td style={{ padding: '12px 8px' }}>
                         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, color: '#334155' }} title={c.name}>
                           {truncate(c.name || '-', 40)}
@@ -148,28 +185,18 @@ export default function ContainerDocker() {
                           {c.image || '-'}
                         </div>
                       </td>
-
-                      {/* State */}
                       <td style={{ padding: '12px 8px' }}>
                         <Badge variant={isRunning ? 'success' : 'danger'} style={{ fontSize: 10, padding: '4px 8px' }}>
                           {isRunning ? 'RUNNING' : 'EXITED/UNKNOWN'}
                         </Badge>
                         <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 6 }}>{c.status || '-'}</div>
                       </td>
-
-                      {/* Ports - API belum sedia */}
-                      <td style={{ padding: '12px 8px', fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#4072af' }}>
-                        -
-                      </td>
-
-                      {/* CPU */}
+                      <td style={{ padding: '12px 8px', fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#4072af' }}>-</td>
                       <td style={{ padding: '12px 8px' }}>
                         <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'monospace', color: '#334155' }}>
                           {c.stats?.cpu || '0.00%'}
                         </span>
                       </td>
-
-                      {/* RAM */}
                       <td style={{ padding: '12px 8px', minWidth: '150px' }}>
                         <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#334155', display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                           <span>{c.stats?.memUsage || '0B / 0B'}</span>
@@ -179,17 +206,8 @@ export default function ContainerDocker() {
                           <div style={{ height: '100%', width: `${memPct}%`, background: memPct > 80 ? '#ef4444' : '#8b5cf6', borderRadius: 3 }} />
                         </div>
                       </td>
-
-                      {/* Net I/O - API belum sedia */}
-                      <td style={{ padding: '12px 8px', fontSize: 12, fontFamily: 'monospace', color: '#475569' }}>
-                        -
-                      </td>
-
-                      {/* Block I/O - API belum sedia */}
-                      <td style={{ padding: '12px 8px', fontSize: 12, fontFamily: 'monospace', color: '#475569' }}>
-                        -
-                      </td>
-
+                      <td style={{ padding: '12px 8px', fontSize: 12, fontFamily: 'monospace', color: '#475569' }}>-</td>
+                      <td style={{ padding: '12px 8px', fontSize: 12, fontFamily: 'monospace', color: '#475569' }}>-</td>
                     </tr>
                   );
                 }) : (
@@ -202,7 +220,7 @@ export default function ContainerDocker() {
           </div>
         </Card>
 
-        {/* ── ROW 3: APP RUNTIME & LIVE EVENTS ── */}
+        {/* ── ROW 3: APP RUNTIME & HEAP TREND ── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 20 }}>
           
           {/* Left: Node.js Stats */}
@@ -247,27 +265,67 @@ export default function ContainerDocker() {
             )}
           </Card>
 
-          {/* Right: Live Terminal Feed */}
+          {/* Right: Modern SVG Area Chart */}
           <Card 
-            title="Live Docker Events" 
-            subtitle="Terminal log stream dari Docker Daemon" 
-            rightElement={<span style={{ width: 8, height: 8, borderRadius: '50%', background: error ? '#ef4444' : '#22c55e', display: 'block', animation: 'pulse-ring 1s infinite' }} />}
+            title="Node.js Engine Status" 
+            subtitle={`Runtime Version: ${nodejs.version || '-'}`} 
             delay="0.6s"
-            style={{ background: '#0f172a', color: '#e2e8f0', border: 'none' }}
+            style={{ display: 'flex', flexDirection: 'column' }}
           >
-            <div style={{ 
-              marginTop: 15, 
-              height: 240, 
-              overflowY: 'auto', 
-              fontFamily: 'JetBrains Mono, monospace', 
-              fontSize: 12,
-              paddingRight: 10,
-              lineHeight: '1.6'
-            }}>
-              <div style={{ color: '#64748b', marginBottom: 10 }}>API saat ini belum mensupport live event stream...</div>
-              <div style={{ color: '#64748b', marginTop: 15 }}>
-                root@{system.hostname || 'smartcity-host'}:~# docker events --since 1h <span style={{ animation: 'blink 1s infinite' }}>_</span>
+            <div style={{ marginTop: 25, flex: 1, display: 'flex', flexDirection: 'column' }}>
+              
+              {/* Info Text Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
+                <span style={{ color: '#64748b', fontWeight: 600, fontSize: 13 }}>Heap Memory Trend</span>
+                
+                <div style={{ display: 'flex', alignItems: 'baseline', color: '#8b5cf6' }}>
+                  <span style={{ fontSize: 32, fontWeight: 700, lineHeight: 1 }}>
+                    {formatNumberOnly(nodejs?.memoryUsage?.heapUsed)}
+                  </span>
+                  <span style={{ fontSize: 14, fontWeight: 600, marginLeft: 6 }}>
+                    {formatUnitOnly(nodejs?.memoryUsage?.heapUsed)}
+                  </span>
+                </div>
               </div>
+
+              {/* SVG Chart Area */}
+              <div style={{ flex: 1, minHeight: 120, position: 'relative', marginTop: 'auto' }}>
+                {heapTrend.length > 0 ? (
+                  <svg 
+                    viewBox="0 0 100 50" 
+                    preserveAspectRatio="none" 
+                    style={{ width: '100%', height: '100%', position: 'absolute', bottom: 0, left: 0 }}
+                  >
+                    <defs>
+                      {/* Definisi Warna Gradien (Ungu pudar ke transparan) */}
+                      <linearGradient id="gradientArea" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Path Area Fill (Warna bawah) */}
+                    <path 
+                      d={areaData} 
+                      fill="url(#gradientArea)" 
+                    />
+                    
+                    {/* Path Line Stroke (Garis atas) */}
+                    <path 
+                      d={pathData} 
+                      fill="none" 
+                      stroke="#8b5cf6" 
+                      strokeWidth="0.8" 
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </svg>
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                    Mengumpulkan data grafik...
+                  </div>
+                )}
+              </div>
+
             </div>
           </Card>
 
